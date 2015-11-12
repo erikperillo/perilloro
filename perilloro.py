@@ -59,7 +59,7 @@ def message(msg, endl=True):
 
 def tic_toc(sleep_time, msg=""):
     for i in xrange(int(sleep_time)):
-        sys.stdout.write(msg + "remaining time: %dh%dm%ds" % format_time(sleep_time-i))
+        sys.stdout.write(msg + "remaining time: %.2dh%.2dm%.2ds" % format_time(sleep_time-i))
         sys.stdout.flush()
         time.sleep(1.0)
 
@@ -75,8 +75,8 @@ def main():
     rest_increment = oarg.Oarg("--ri", 0.0, "increment of rests times for each session") 
     iterations = oarg.Oarg("-i --iterations", 2, "number of pomodoros for each session")
     sessions = oarg.Oarg("-s --sessions", 1, "number of sessions")  
-    notifier = oarg.Oarg("-n --notifier", "", "path to system notifier to send messages" + 
-                                              "about sessions")
+    notifier = oarg.Oarg("-n --notifier", "/usr/bin/notify-send", 
+                         "path to system notifier to send messages about sessions")
     hlp = oarg.Oarg("-h --help", False, "this help message")  
     
     #parsing command line args
@@ -121,21 +121,29 @@ def main():
         time.sleep(1.0)
     print "go!" + linesep
 
+    #reseting generator
+    rest_gen = time_gen(min_to_sec(rest_start_time.val), 
+                        min_to_sec(rest_increment.val))
+
     for i in xrange(sessions.val):
-        pg = pomodoro_gen
-        bg = break_gen
+        #reseting generators
+        pomodoro_gen = time_gen(min_to_sec(pomodoro_start_time.val), 
+                                min_to_sec(pomodoro_increment.val))
+        break_gen = time_gen(min_to_sec(break_start_time.val), 
+                             min_to_sec(break_increment.val))
 
         message("on session #%d" % (i+1))
         for it in xrange(iterations.val):
-            pomodoro = pg.next()
-            notify(notifier.val, "pomodoro started - duration: %dh%dm%ds" % \
+            pomodoro = pomodoro_gen.next()
+            notify(notifier.val, "pomodoro started - duration: %.2dh%.2dm%.2ds" % \
                                  format_time(pomodoro))
             tic_toc(pomodoro, msg="\r" + len(PROG_KEY)*" " + 
                                   "pomodoro #%d out of %d - " % (it+1, iterations.val))
             print
 
-            break_time = bg.next()
-            notify(notifier.val, "break time - duration: %dh%dm%ds" % \
+            break_time = break_gen.next()
+            print sec_to_min(break_time)
+            notify(notifier.val, "break time - duration: %.2dh%.2dm%.2ds" % \
                                  format_time(break_time))
             tic_toc(break_time, msg="\r" + len(PROG_KEY)*" " + "break time! - ")
             print 
@@ -143,7 +151,7 @@ def main():
         rest_time = rest_gen.next()
         print
         message("time to rest for next session")
-        notify(notifier.val, "rest time - duration: %dh%dm%ds" % \
+        notify(notifier.val, "rest time - duration: %.2dh%.2dm%.2ds" % \
                              format_time(rest_time))
         tic_toc(rest_time, msg="\r" + len(PROG_KEY)*" ")
         print linesep 
